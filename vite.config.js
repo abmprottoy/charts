@@ -11,7 +11,7 @@ export default defineConfig({
       manifest: {
         name: "Simple Charts",
         short_name: "Simple Charts",
-        description: "By ABM Labs. Create pie and bar charts for classroom questions.",
+        description: "By ABM Labs. Create pie and bar charts for classrooms and presentations.",
         theme_color: "#b48ae0",
         background_color: "#f6f0ff",
         display: "standalone",
