@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://charts.abmcodes.xyz/sitemap.xml
