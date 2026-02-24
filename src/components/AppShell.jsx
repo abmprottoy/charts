@@ -25,13 +25,18 @@ export default function AppShell({ children, theme, onToggleTheme }) {
         </Button>
       </header>
       <div className="animate-fade-up">{children}</div>
-      <footer className="mt-8 flex flex-col gap-2 border-t border-border pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-        <p>{`© ${year} ABM Labs. All rights reserved.`}</p>
+      <footer className="mt-8 flex flex-col gap-2 rounded-xl border border-violet-200/70 bg-violet-50/60 px-4 py-4 text-sm text-slate-600 dark:border-violet-400/20 dark:bg-violet-950/20 dark:text-slate-300 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-1">
+          <p>{`© ${year} ABM Labs. All rights reserved.`}</p>
+          <p className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+          🫰 With love, from Dhaka.
+          </p>
+        </div>
         <nav className="flex items-center gap-4">
-          <Link className="transition-colors hover:text-foreground" to="/terms-and-conditions">
+          <Link className="transition-colors hover:text-violet-600 dark:hover:text-violet-400" to="/terms-and-conditions">
             Terms and Conditions
           </Link>
-          <Link className="transition-colors hover:text-foreground" to="/privacy-policy">
+          <Link className="transition-colors hover:text-violet-600 dark:hover:text-violet-400" to="/privacy-policy">
             Privacy Policy
           </Link>
         </nav>
