@@ -47,6 +47,11 @@ const LATIN_TO_BENGALI_DIGITS = {
   "8": "৮",
   "9": "৯"
 };
+const CHART_TYPES = ["pie", "doughnut", "bar", "horizontalBar", "line"];
+const CIRCULAR_CHART_TYPES = new Set(["pie", "doughnut"]);
+const AXIS_CHART_TYPES = new Set(["bar", "horizontalBar", "line"]);
+const LABEL_DISPLAY_MODES = new Set(["auto", "value", "percentage", "both"]);
+const LABEL_POSITIONS = new Set(["auto", "inside", "outside"]);
 
 function normalizeNumericInput(value) {
   return String(value)
@@ -106,6 +111,9 @@ function buildDefaultState() {
       title: "",
       showLegend: true,
       showLabels: true,
+      labelDisplayMode: "auto",
+      labelPrecision: 0,
+      labelPosition: "auto",
       xAxisLabel: "",
       yAxisLabel: "",
       paletteId: DEFAULT_PALETTE_ID,
@@ -133,10 +141,25 @@ function sanitizeState(rawState, defaultState) {
     : defaultState.rows;
 
   const safeOptions = rawState?.options ?? {};
+  const normalizedChartType = CHART_TYPES.includes(safeOptions.chartType)
+    ? safeOptions.chartType
+    : "pie";
+  const normalizedLabelDisplayMode = LABEL_DISPLAY_MODES.has(safeOptions.labelDisplayMode)
+    ? safeOptions.labelDisplayMode
+    : defaultState.options.labelDisplayMode;
+  const normalizedLabelPosition = LABEL_POSITIONS.has(safeOptions.labelPosition)
+    ? safeOptions.labelPosition
+    : defaultState.options.labelPosition;
+  const parsedLabelPrecision = Number(safeOptions.labelPrecision);
+  const normalizedLabelPrecision =
+    Number.isInteger(parsedLabelPrecision) && parsedLabelPrecision >= 0 && parsedLabelPrecision <= 2
+      ? parsedLabelPrecision
+      : defaultState.options.labelPrecision;
+
   return {
     rows: safeRows.length ? safeRows : defaultState.rows,
     options: {
-      chartType: safeOptions.chartType === "bar" ? "bar" : "pie",
+      chartType: normalizedChartType,
       valueMode: safeOptions.valueMode === "percentage" ? "percentage" : "exact",
       title: typeof safeOptions.title === "string" ? safeOptions.title : "",
       showLegend:
@@ -147,6 +170,9 @@ function sanitizeState(rawState, defaultState) {
         typeof safeOptions.showLabels === "boolean"
           ? safeOptions.showLabels
           : defaultState.options.showLabels,
+      labelDisplayMode: normalizedLabelDisplayMode,
+      labelPrecision: normalizedLabelPrecision,
+      labelPosition: normalizedLabelPosition,
       xAxisLabel: typeof safeOptions.xAxisLabel === "string" ? safeOptions.xAxisLabel : "",
       yAxisLabel: typeof safeOptions.yAxisLabel === "string" ? safeOptions.yAxisLabel : "",
       paletteId:
@@ -227,18 +253,18 @@ function validateRows(rows, chartType, valueMode) {
     exportIssues.push("Complete or clear unfinished rows.");
   }
 
-  if (chartType === "pie") {
+  if (CIRCULAR_CHART_TYPES.has(chartType)) {
     if (validRows.some((row) => row.value < 0)) {
-      blockingIssues.push("Pie charts do not support negative values.");
+      blockingIssues.push("Pie and doughnut charts do not support negative values.");
     }
     if (validRows.length > 0 && !validRows.some((row) => row.value > 0)) {
-      blockingIssues.push("Pie charts need at least one value above zero.");
+      blockingIssues.push("Pie and doughnut charts need at least one value above zero.");
     }
 
     if (valueMode === "percentage") {
       const total = validRows.reduce((sum, row) => sum + row.value, 0);
       if (validRows.length > 0 && Math.abs(total - 100) > 0.5) {
-        exportIssues.push("For pie charts, percentage totals should be close to 100.");
+        exportIssues.push("For pie and doughnut charts, percentage totals should be close to 100.");
       }
     }
   }
@@ -314,36 +340,164 @@ function ChartBuilderPage({ theme, onToggleTheme }) {
     [chartRows, options.advancedColorsEnabled, options.customColors, palette.colors]
   );
 
-  const chartData = useMemo(
-    () => ({
-      labels: chartRows.map((row) => row.label),
+  const isCircularChart = CIRCULAR_CHART_TYPES.has(options.chartType);
+  const isAxisChart = AXIS_CHART_TYPES.has(options.chartType);
+  const isHorizontalBar = options.chartType === "horizontalBar";
+  const hasNegativeValues = chartRows.some((row) => row.value < 0);
+
+  const chartData = useMemo(() => {
+    const labels = chartRows.map((row) => row.label);
+    const values = chartRows.map((row) => row.value);
+    const baseDataset = {
+      label: options.valueMode === "percentage" ? "Percentage" : "Value",
+      data: values,
+      useBengaliNumeralsByIndex: valueLocaleByIndex
+    };
+
+    if (options.chartType === "line") {
+      const lineColor = resolvedColors[0] ?? palette.colors[0] ?? "#64748b";
+      return {
+        labels,
+        datasets: [
+          {
+            ...baseDataset,
+            borderColor: lineColor,
+            backgroundColor: lineColor,
+            pointBackgroundColor: resolvedColors,
+            pointBorderColor: "#ffffff",
+            pointBorderWidth: 1.5,
+            pointRadius: 4,
+            pointHoverRadius: 5,
+            borderWidth: 3,
+            tension: 0.28,
+            fill: false
+          }
+        ]
+      };
+    }
+
+    if (isCircularChart) {
+      return {
+        labels,
+        datasets: [
+          {
+            ...baseDataset,
+            backgroundColor: resolvedColors,
+            borderColor: "#ffffff",
+            borderWidth: 2,
+            hoverOffset: 6
+          }
+        ]
+      };
+    }
+
+    return {
+      labels,
       datasets: [
         {
-          label: options.valueMode === "percentage" ? "Percentage" : "Value",
-          data: chartRows.map((row) => row.value),
-          useBengaliNumeralsByIndex: valueLocaleByIndex,
+          ...baseDataset,
           backgroundColor: resolvedColors,
-          borderColor: options.chartType === "pie" ? "#ffffff" : resolvedColors,
-          borderWidth: options.chartType === "pie" ? 2 : 1,
-          borderRadius: options.chartType === "bar" ? 10 : 0
+          borderColor: resolvedColors,
+          borderWidth: 1,
+          borderRadius: 10,
+          maxBarThickness: isHorizontalBar ? 36 : 52
         }
       ]
-    }),
-    [chartRows, options.valueMode, options.chartType, resolvedColors]
-  );
+    };
+  }, [
+    chartRows,
+    options.valueMode,
+    options.chartType,
+    valueLocaleByIndex,
+    resolvedColors,
+    palette.colors,
+    isCircularChart,
+    isHorizontalBar
+  ]);
 
-  const hasNegativeBarValue = chartRows.some((row) => row.value < 0);
   const axisTextColor = "#334155";
   const titleColor = "#0f172a";
   const gridColor = "rgba(148, 163, 184, 0.28)";
 
-  const chartOptions = useMemo(
-    () => ({
+  const chartOptions = useMemo(() => {
+    function resolveLegendColors(chart) {
+      const labels = chart.data.labels ?? [];
+      const dataset = chart.data.datasets?.[0] ?? {};
+      const pointColors = Array.isArray(dataset.pointBackgroundColor)
+        ? dataset.pointBackgroundColor
+        : null;
+      const backgroundColors = Array.isArray(dataset.backgroundColor) ? dataset.backgroundColor : null;
+      const borderColors = Array.isArray(dataset.borderColor) ? dataset.borderColor : null;
+      const colorList = pointColors ?? backgroundColors ?? borderColors;
+
+      if (Array.isArray(colorList) && colorList.length > 0) {
+        return labels.map((_, index) => colorList[index % colorList.length]);
+      }
+
+      const fallbackColor =
+        dataset.pointBackgroundColor ?? dataset.backgroundColor ?? dataset.borderColor ?? "#64748b";
+      return labels.map(() => fallbackColor);
+    }
+
+    const categoryAxisTitle = options.xAxisLabel.trim();
+    const numericAxisTitle =
+      options.valueMode === "percentage" && options.yAxisLabel.trim() === ""
+        ? "Percent (%)"
+        : options.yAxisLabel.trim();
+
+    const categoryAxisConfig = {
+      grid: {
+        display: false
+      },
+      ticks: {
+        color: axisTextColor
+      },
+      title: {
+        display: Boolean(categoryAxisTitle),
+        text: categoryAxisTitle,
+        color: titleColor,
+        font: {
+          size: 12,
+          weight: "600"
+        }
+      }
+    };
+
+    const numericAxisConfig = {
+      beginAtZero: !hasNegativeValues,
+      ticks: {
+        color: axisTextColor,
+        callback: (tickValue) => {
+          const formatted = formatChartNumber(Number(tickValue), useBengaliNumeralsOnAxis);
+          return options.valueMode === "percentage" ? `${formatted}%` : formatted;
+        }
+      },
+      grid: {
+        color: gridColor
+      },
+      title: {
+        display: Boolean(numericAxisTitle),
+        text: numericAxisTitle,
+        color: titleColor,
+        font: {
+          size: 12,
+          weight: "600"
+        }
+      }
+    };
+
+    return {
       responsive: true,
       maintainAspectRatio: false,
       animation: {
         duration: 350
       },
+      indexAxis:
+        options.chartType === "bar" || options.chartType === "horizontalBar"
+          ? isHorizontalBar
+            ? "y"
+            : "x"
+          : undefined,
       plugins: {
         legend: {
           display: options.showLegend,
@@ -355,10 +509,7 @@ function ChartBuilderPage({ theme, onToggleTheme }) {
             color: axisTextColor,
             generateLabels: (chart) => {
               const labels = chart.data.labels ?? [];
-              const dataset = chart.data.datasets?.[0];
-              const colors = Array.isArray(dataset?.backgroundColor)
-                ? dataset.backgroundColor
-                : labels.map(() => dataset?.backgroundColor ?? "#64748b");
+              const colors = resolveLegendColors(chart);
 
               return labels.map((label, index) => ({
                 text: String(label),
@@ -392,14 +543,14 @@ function ChartBuilderPage({ theme, onToggleTheme }) {
           cornerRadius: 10,
           callbacks: {
             label: (context) => {
-              const numericValue =
-                options.chartType === "bar"
-                  ? Number(context.parsed?.y)
-                  : Number(context.parsed);
+              let numericValue = Number(context.parsed);
+              if (options.chartType === "horizontalBar") {
+                numericValue = Number(context.parsed?.x);
+              } else if (options.chartType === "bar" || options.chartType === "line") {
+                numericValue = Number(context.parsed?.y);
+              }
 
-              const localizedForPoint = Boolean(
-                chartRows[context.dataIndex]?.useBengaliNumerals
-              );
+              const localizedForPoint = Boolean(chartRows[context.dataIndex]?.useBengaliNumerals);
               const formattedValue = formatChartNumber(numericValue, localizedForPoint);
               const labelPrefix = context.label ? `${context.label}: ` : "";
               const suffix = options.valueMode === "percentage" ? "%" : "";
@@ -413,77 +564,46 @@ function ChartBuilderPage({ theme, onToggleTheme }) {
           color: "#1f2937",
           font: '600 11px "Inter", "Segoe UI", system-ui, -apple-system, "Noto Serif Bengali", "Nirmala UI", sans-serif',
           valueMode: options.valueMode,
+          displayMode: options.labelDisplayMode,
+          precision: options.labelPrecision,
+          position: options.labelPosition,
+          chartType: options.chartType,
           useBengaliNumeralsByIndex: valueLocaleByIndex
         }
       },
-      scales:
-        options.chartType === "bar"
+      scales: isAxisChart
+        ? isHorizontalBar
           ? {
-              x: {
-                grid: {
-                  display: false
-                },
-                ticks: {
-                  color: axisTextColor
-                },
-                title: {
-                  display: Boolean(options.xAxisLabel.trim()),
-                  text: options.xAxisLabel.trim(),
-                  color: titleColor,
-                  font: {
-                    size: 12,
-                    weight: "600"
-                  }
-                }
-              },
-              y: {
-                beginAtZero: !hasNegativeBarValue,
-                ticks: {
-                  color: axisTextColor,
-                  callback: (tickValue) => {
-                    const formatted = formatChartNumber(
-                      Number(tickValue),
-                      useBengaliNumeralsOnAxis
-                    );
-                    return options.valueMode === "percentage" ? `${formatted}%` : formatted;
-                  }
-                },
-                grid: {
-                  color: gridColor
-                },
-                title: {
-                  display: Boolean(options.yAxisLabel.trim()),
-                  text:
-                    options.valueMode === "percentage" && options.yAxisLabel.trim() === ""
-                      ? "Percent (%)"
-                      : options.yAxisLabel.trim(),
-                  color: titleColor,
-                  font: {
-                    size: 12,
-                    weight: "600"
-                  }
-                }
-              }
+              x: numericAxisConfig,
+              y: categoryAxisConfig
             }
-          : undefined
-    }),
-    [
-      options.chartType,
-      options.showLegend,
-      options.title,
-      options.showLabels,
-      options.valueMode,
-      options.xAxisLabel,
-      options.yAxisLabel,
-      chartRows,
-      valueLocaleByIndex,
-      useBengaliNumeralsOnAxis,
-      hasNegativeBarValue,
-      axisTextColor,
-      titleColor,
-      gridColor
-    ]
-  );
+          : {
+              x: categoryAxisConfig,
+              y: numericAxisConfig
+            }
+        : undefined
+    };
+  }, [
+    options.chartType,
+    options.showLegend,
+    options.title,
+    options.showLabels,
+    options.valueMode,
+    options.xAxisLabel,
+    options.yAxisLabel,
+    options.labelDisplayMode,
+    options.labelPrecision,
+    options.labelPosition,
+    chartRows,
+    valueLocaleByIndex,
+    useBengaliNumeralsOnAxis,
+    hasNegativeValues,
+    axisTextColor,
+    titleColor,
+    gridColor,
+    isAxisChart,
+    isHorizontalBar
+  ]);
 
   function updateOptions(patch) {
     setAppState((current) => ({

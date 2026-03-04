@@ -56,6 +56,7 @@ function applyChartStyleOverrides(chart, overrides = {}) {
   const xScale = scales.x ?? {};
   const xTicks = xScale.ticks ?? {};
   const xTitle = xScale.title ?? {};
+  const xGrid = xScale.grid ?? {};
   const yScale = scales.y ?? {};
   const yTicks = yScale.ticks ?? {};
   const yTitle = yScale.title ?? {};
@@ -67,6 +68,7 @@ function applyChartStyleOverrides(chart, overrides = {}) {
   setValue(yTicks, "color", overrides.axisTextColor);
   setValue(xTitle, "color", overrides.axisTextColor);
   setValue(yTitle, "color", overrides.axisTextColor);
+  setValue(xGrid, "color", overrides.gridColor);
   setValue(yGrid, "color", overrides.gridColor);
   setValue(valueOverlay, "color", overrides.valueOverlayColor);
   setValue(tooltip, "backgroundColor", overrides.tooltipBackgroundColor);

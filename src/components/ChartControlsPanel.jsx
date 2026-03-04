@@ -12,6 +12,29 @@ import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 
+const CHART_TYPE_OPTIONS = [
+  { value: "pie", label: "Pie" },
+  { value: "doughnut", label: "Doughnut" },
+  { value: "bar", label: "Bar" },
+  { value: "horizontalBar", label: "Horizontal" },
+  { value: "line", label: "Line" }
+];
+
+const LABEL_DISPLAY_OPTIONS = [
+  { value: "auto", label: "Auto" },
+  { value: "value", label: "Values" },
+  { value: "percentage", label: "Percents" },
+  { value: "both", label: "Both" }
+];
+
+const LABEL_POSITION_OPTIONS = [
+  { value: "auto", label: "Auto" },
+  { value: "inside", label: "Inside" },
+  { value: "outside", label: "Outside" }
+];
+
+const AXIS_CHART_TYPES = new Set(["bar", "horizontalBar", "line"]);
+
 function SwitchRow({ id, label, checked, onCheckedChange }) {
   return (
     <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
@@ -47,9 +70,16 @@ export default function ChartControlsPanel({
             value={options.chartType}
             onValueChange={(value) => onChangeOptions({ chartType: value })}
           >
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="pie">Pie</TabsTrigger>
-              <TabsTrigger value="bar">Bar</TabsTrigger>
+            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-3">
+              {CHART_TYPE_OPTIONS.map((chartTypeOption) => (
+                <TabsTrigger
+                  key={chartTypeOption.value}
+                  value={chartTypeOption.value}
+                  className="text-xs sm:text-sm"
+                >
+                  {chartTypeOption.label}
+                </TabsTrigger>
+              ))}
             </TabsList>
           </Tabs>
         </div>
@@ -80,7 +110,57 @@ export default function ChartControlsPanel({
           />
         </div>
 
-        {options.chartType === "bar" ? (
+        {options.showLabels ? (
+          <div className="animate-fade-up space-y-3 rounded-lg border bg-muted/30 p-3">
+            <div className="space-y-2">
+              <Label>Label Content</Label>
+              <Tabs
+                value={options.labelDisplayMode}
+                onValueChange={(value) => onChangeOptions({ labelDisplayMode: value })}
+              >
+                <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4">
+                  {LABEL_DISPLAY_OPTIONS.map((labelMode) => (
+                    <TabsTrigger key={labelMode.value} value={labelMode.value} className="text-xs">
+                      {labelMode.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Label Position</Label>
+              <Tabs
+                value={options.labelPosition}
+                onValueChange={(value) => onChangeOptions({ labelPosition: value })}
+              >
+                <TabsList className="grid w-full grid-cols-3">
+                  {LABEL_POSITION_OPTIONS.map((labelPosition) => (
+                    <TabsTrigger key={labelPosition.value} value={labelPosition.value}>
+                      {labelPosition.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Decimal Places</Label>
+              <Tabs
+                value={String(options.labelPrecision)}
+                onValueChange={(value) => onChangeOptions({ labelPrecision: Number(value) })}
+              >
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="0">0</TabsTrigger>
+                  <TabsTrigger value="1">1</TabsTrigger>
+                  <TabsTrigger value="2">2</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </div>
+        ) : null}
+
+        {AXIS_CHART_TYPES.has(options.chartType) ? (
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="x-axis-label">X Axis Label</Label>

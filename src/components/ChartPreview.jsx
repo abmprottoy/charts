@@ -5,11 +5,13 @@ import {
   CategoryScale,
   Chart as ChartJS,
   Legend,
+  LineElement,
   LinearScale,
+  PointElement,
   Title,
   Tooltip
 } from "chart.js";
-import { Bar, Pie } from "react-chartjs-2";
+import { Bar, Doughnut, Line, Pie } from "react-chartjs-2";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { valueOverlayPlugin } from "../utils/valueOverlayPlugin";
 
@@ -19,6 +21,8 @@ const CHART_FONT_FAMILY =
 ChartJS.register(
   ArcElement,
   BarElement,
+  LineElement,
+  PointElement,
   CategoryScale,
   LinearScale,
   Tooltip,
@@ -43,6 +47,10 @@ const ChartPreview = forwardRef(function ChartPreview(
           <div className="animate-fade-up relative min-h-[360px] w-full rounded-xl border border-slate-200 bg-white p-3 md:min-h-[430px]">
             {chartType === "pie" ? (
               <Pie ref={ref} data={chartData} options={chartOptions} />
+            ) : chartType === "doughnut" ? (
+              <Doughnut ref={ref} data={chartData} options={chartOptions} />
+            ) : chartType === "line" ? (
+              <Line ref={ref} data={chartData} options={chartOptions} />
             ) : (
               <Bar ref={ref} data={chartData} options={chartOptions} />
             )}
